@@ -1,6 +1,6 @@
 -- Migration: Fix Routing Logic and Data Integrity
 
--- 1. Fix insert_route to force merging of linestrings
+-- 1. Fix insert_route to force merging of linestrings and casting to MultiLineString
 CREATE OR REPLACE FUNCTION insert_route(
     p_route_name text,
     p_formal_name text,
@@ -16,15 +16,15 @@ BEGIN
         p_route_name,
         p_formal_name,
         p_color,
-        -- Attempt to merge segments into a single LineString if possible
-        ST_LineMerge(ST_SetSRID(ST_GeomFromGeoJSON(p_geo_json), 4326))::geography
+        -- Merge segments, then ensure result is wrapped as a MultiLineString
+        ST_Multi(ST_LineMerge(ST_SetSRID(ST_GeomFromGeoJSON(p_geo_json), 4326)))::geography
     );
 END;
 $$;
 
--- 2. Update existing routes to be merged (Best Effort)
+-- 2. Update existing routes to be merged (Best Effort), ensuring MultiLineString type
 UPDATE routes
-SET path = ST_LineMerge(path::geometry)::geography;
+SET path = ST_Multi(ST_LineMerge(path::geometry))::geography;
 
 -- 3. Enhanced find_best_route
 -- Supports Loops (wrapping) and Sorting Preferences
