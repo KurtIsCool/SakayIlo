@@ -1,6 +1,23 @@
--- Migration: Fix Routing Logic and Data Integrity
+-- Migration: Fix RPC return types to match BIGINT ID schema
 
--- 1. Fix insert_route to force merging of linestrings and casting to MultiLineString
+-- 1. DROP Existing Functions to prevent signature ambiguity
+-- Drop 6-argument version (with defaults)
+DROP FUNCTION IF EXISTS find_best_route(double precision, double precision, double precision, double precision, text, double precision);
+-- Drop 5-argument version (older version if exists)
+DROP FUNCTION IF EXISTS find_best_route(double precision, double precision, double precision, double precision, double precision);
+-- Drop 4-argument version (if exists)
+DROP FUNCTION IF EXISTS find_best_route(double precision, double precision, double precision, double precision);
+
+DROP FUNCTION IF EXISTS get_route_path(uuid);
+DROP FUNCTION IF EXISTS get_route_path(bigint);
+DROP FUNCTION IF EXISTS get_all_routes_paths();
+
+-- 2. UPDATE Existing Data (Best Effort)
+-- Fixes MultiLineString geometry and ensures all paths are valid
+UPDATE routes
+SET path = ST_Multi(ST_LineMerge(path::geometry))::geography;
+
+-- 3. FIX Insert Function
 CREATE OR REPLACE FUNCTION insert_route(
     p_route_name text,
     p_formal_name text,
@@ -22,12 +39,51 @@ BEGIN
 END;
 $$;
 
--- 2. Update existing routes to be merged (Best Effort), ensuring MultiLineString type
-UPDATE routes
-SET path = ST_Multi(ST_LineMerge(path::geometry))::geography;
+-- 4. Recreate get_route_path with BIGINT
+CREATE OR REPLACE FUNCTION get_route_path(
+    route_id bigint
+)
+RETURNS TABLE (
+    route_id bigint,
+    route_name text,
+    color text,
+    path_geojson text
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        r.id,
+        r.route_name,
+        r.color,
+        ST_AsGeoJSON(r.path) as path_geojson
+    FROM routes r
+    WHERE r.id = route_id;
+END;
+$$;
 
--- 3. Enhanced find_best_route
--- Supports Loops (wrapping) and Sorting Preferences
+-- 5. Recreate get_all_routes_paths with BIGINT
+CREATE OR REPLACE FUNCTION get_all_routes_paths()
+RETURNS TABLE (
+    route_id bigint,
+    color text,
+    path_geojson text
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        r.id,
+        r.color,
+        ST_AsGeoJSON(ST_Simplify(r.path::geometry, 0.0001)) as path_geojson
+    FROM routes r
+    WHERE r.is_active = true;
+END;
+$$;
+
+-- 6. Recreate find_best_route with BIGINT
 CREATE OR REPLACE FUNCTION find_best_route(
     user_lat double precision,
     user_lng double precision,
@@ -119,48 +175,67 @@ BEGIN
                 ELSE (1.0 - p_frac) + d_frac -- Wrap around distance fraction
             END as ride_frac_score
         FROM scored_routes
+    ),
+    final_output AS (
+        SELECT
+            vd.id as route_id,
+            vd.route_name,
+            vd.formal_name,
+            vd.color,
+            (vd.walk1_dist + vd.walk2_dist) as total_walking_distance_meters,
+            ST_AsGeoJSON(vd.pickup_geom) as pickup_point_geojson,
+            ST_AsGeoJSON(vd.dropoff_geom) as dropoff_point_geojson,
+
+            -- Generate Segment Geometry
+            ST_AsGeoJSON(
+                CASE
+                    WHEN vd.p_frac <= vd.d_frac THEN
+                        ST_LineSubstring(vd.path_geom, vd.p_frac, vd.d_frac)
+                    ELSE
+                        -- Wrap around: Union of (P -> End) and (Start -> D)
+                        ST_MakeLine(
+                            ST_LineSubstring(vd.path_geom, vd.p_frac, 1.0),
+                            ST_LineSubstring(vd.path_geom, 0.0, vd.d_frac)
+                        )
+                END
+            ) as route_segment_geojson,
+
+            vd.p_frac as pickup_fraction,
+            vd.d_frac as dropoff_fraction,
+            (vd.p_frac > vd.d_frac) as is_loop_ride,
+
+            vd.ride_frac_score,
+            vd.walk1_dist,
+            vd.walk2_dist
+        FROM valid_directions vd
+        WHERE vd.is_valid = true
     )
     SELECT
-        vd.id as route_id,
-        vd.route_name,
-        vd.formal_name,
-        vd.color,
-        (vd.walk1_dist + vd.walk2_dist) as total_walking_distance_meters,
-        ST_AsGeoJSON(vd.pickup_geom) as pickup_point_geojson,
-        ST_AsGeoJSON(vd.dropoff_geom) as dropoff_point_geojson,
-
-        -- Generate Segment Geometry
-        ST_AsGeoJSON(
-            CASE
-                WHEN vd.p_frac <= vd.d_frac THEN
-                    ST_LineSubstring(vd.path_geom, vd.p_frac, vd.d_frac)
-                ELSE
-                    -- Wrap around: Union of (P -> End) and (Start -> D)
-                    ST_MakeLine(
-                        ST_LineSubstring(vd.path_geom, vd.p_frac, 1.0),
-                        ST_LineSubstring(vd.path_geom, 0.0, vd.d_frac)
-                    )
-            END
-        ) as route_segment_geojson,
-
-        vd.p_frac as pickup_fraction,
-        vd.d_frac as dropoff_fraction,
-        (vd.p_frac > vd.d_frac) as is_loop_ride
-    FROM valid_directions vd
-    WHERE vd.is_valid = true
+        route_id,
+        route_name,
+        formal_name,
+        color,
+        total_walking_distance_meters,
+        pickup_point_geojson,
+        dropoff_point_geojson,
+        route_segment_geojson,
+        pickup_fraction,
+        dropoff_fraction,
+        is_loop_ride
+    FROM final_output
     ORDER BY
         -- Dynamic Sorting
         CASE WHEN sort_mode = 'cheapest' THEN
-             vd.ride_frac_score -- Shortest ride assumed cheapest
+             ride_frac_score -- Shortest ride assumed cheapest
         ELSE
-             (vd.walk1_dist + vd.walk2_dist) -- Default/Fastest/Transfers prioritizes less walking first
+             (walk1_dist + walk2_dist) -- Default/Fastest/Transfers prioritizes less walking first
         END ASC,
 
         -- Secondary sorts
         CASE WHEN sort_mode = 'fastest' THEN
-             vd.ride_frac_score -- Then shortest ride
+             ride_frac_score -- Then shortest ride
         ELSE
-             (vd.walk1_dist + vd.walk2_dist)
+             (walk1_dist + walk2_dist)
         END ASC
     LIMIT 5;
 END;
