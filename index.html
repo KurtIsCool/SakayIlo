@@ -584,7 +584,7 @@
 
             } catch (err) {
                 console.error(err);
-                showToast("Error finding routes. Please try again.");
+                showToast("Error: " + (err.message || "Unknown error"));
             } finally {
                 btn.innerHTML = originalText;
                 lucide.createIcons();
