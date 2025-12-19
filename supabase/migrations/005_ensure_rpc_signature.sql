@@ -10,7 +10,7 @@ CREATE OR REPLACE FUNCTION find_best_route(
     search_radius_meters double precision DEFAULT 600
 )
 RETURNS TABLE (
-    route_id uuid,
+    route_id bigint,
     route_name text,
     formal_name text,
     color text,

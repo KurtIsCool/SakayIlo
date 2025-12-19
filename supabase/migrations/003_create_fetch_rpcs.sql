@@ -2,10 +2,10 @@
 
 -- 1. Get a single route's full path as GeoJSON
 CREATE OR REPLACE FUNCTION get_route_path(
-    route_id uuid
+    route_id bigint
 )
 RETURNS TABLE (
-    route_id uuid,
+    route_id bigint,
     route_name text,
     color text,
     path_geojson text
@@ -28,7 +28,7 @@ $$;
 -- Using ST_Simplify to reduce payload size for the "subtle lines" view
 CREATE OR REPLACE FUNCTION get_all_routes_paths()
 RETURNS TABLE (
-    route_id uuid,
+    route_id bigint,
     color text,
     path_geojson text
 )
