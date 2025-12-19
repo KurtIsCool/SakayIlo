@@ -95,7 +95,7 @@
     <!-- Scripts -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script type="module">
-        import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+        import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.88.0'
 
         // --- CONFIG ---
         const SUPABASE_URL = 'https://cgxvfhxdiqpmnfpktjvr.supabase.co';
@@ -103,6 +103,10 @@
         // DO NOT EXPOSE IT IN CLIENT-SIDE CODE.
         // Use the "anon" public key here.
         const ANON_KEY = '<INSERT_SUPABASE_ANON_KEY_HERE>';
+
+        if (ANON_KEY === '<INSERT_SUPABASE_ANON_KEY_HERE>' || !ANON_KEY) {
+            alert('CRITICAL: Supabase Anon Key is missing! Please update index.html with your valid ANON_KEY.');
+        }
 
         // --- STATE ---
         let userPos = { lat: 10.7202, lng: 122.5621 }; // Default Iloilo City
