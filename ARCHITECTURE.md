@@ -158,9 +158,11 @@ LIMIT 5;
 
 ---
 
-## 5. Offline Caching Strategy
+## 5. Offline Caching Strategy (Phase 2 - Planned)
 
-Since network connectivity can be spotty, the app must be "Offline First".
+*Current Status: The application currently operates in "Online Only" mode. Offline features are planned for future phases.*
+
+Since network connectivity can be spotty, the app goal is to eventually be "Offline First".
 
 1.  **Bootstrapping**: On first launch, fetch *all* active route geometries (`id`, `name`, `color`, `simplified_path`) and store them locally.
     *   Format: GeoJSON FeatureCollection.

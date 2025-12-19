@@ -1,0 +1,18 @@
+-- Migration: Create Routes Schema
+
+-- Enable PostGIS
+CREATE EXTENSION IF NOT EXISTS postgis;
+
+-- Create Routes Table
+CREATE TABLE IF NOT EXISTS routes (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    route_name text NOT NULL,
+    formal_name text,
+    color text,
+    path geography(MultiLineString, 4326),
+    is_active boolean DEFAULT true,
+    last_verified timestamp with time zone DEFAULT now()
+);
+
+-- Index for spatial queries
+CREATE INDEX IF NOT EXISTS routes_path_idx ON routes USING GIST (path);
