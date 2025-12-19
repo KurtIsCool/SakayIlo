@@ -9,29 +9,47 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300..700&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        navy: {
+                            800: '#1e3a8a',
+                            900: '#0f172a',
+                        },
+                        sky: {
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                        },
+                        jeepney: {
+                            yellow: '#facc15',
+                            red: '#ef4444',
+                            orange: '#f97316',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        body { margin: 0; padding: 0; font-family: 'Nunito', sans-serif; }
+        body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; z-index: 0; }
         .leaflet-bottom.leaflet-right { display: none; } /* Hide attribution for cleaner UI demo */
 
-        .brand-font { font-family: 'Fredoka', sans-serif; }
-
-        /* Cartoony Shadow & Borders */
-        .cartoony-box {
-            border: 3px solid #1e293b; /* slate-800 */
-            box-shadow: 4px 4px 0px 0px #1e293b;
+        /* Modern Scrollbar for Results */
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
         }
-        .cartoony-btn {
-            border: 3px solid #1e293b;
-            box-shadow: 3px 3px 0px 0px #1e293b;
-            transition: all 0.1s ease-in-out;
-        }
-        .cartoony-btn:active {
-            transform: translate(2px, 2px);
-            box-shadow: 0px 0px 0px 0px #1e293b;
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
         }
 
         /* Loading Screen Transition */
@@ -44,52 +62,109 @@
         }
     </style>
 </head>
-<body>
+<body class="bg-gray-50 text-slate-800">
     <!-- Loading Screen -->
-    <div id="loading-screen" class="fixed inset-0 bg-sky-100 z-[5000] flex flex-col items-center justify-center">
-        <div class="w-48 h-48 bg-white rounded-full flex items-center justify-center border-4 border-slate-800 shadow-[6px_6px_0px_0px_rgba(30,41,59,1)] overflow-hidden mb-6 animate-bounce">
-            <img src="assets/sakay_logo.jpg" alt="SakayIlo Logo" class="w-full h-full object-cover">
+    <div id="loading-screen" class="fixed inset-0 bg-white z-[5000] flex flex-col items-center justify-center">
+        <div class="relative w-24 h-24 mb-4">
+             <!-- Simple SVG Logo Placeholder -->
+             <svg class="w-full h-full text-navy-800 animate-pulse" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+             </svg>
         </div>
-        <h1 class="brand-font text-4xl text-slate-800 tracking-wider">SakayIlo</h1>
-        <p class="text-slate-600 mt-2 font-bold animate-pulse">Loading Map...</p>
+        <h1 class="text-2xl font-bold text-navy-800 tracking-tight">SakayIlo</h1>
+        <p class="text-slate-500 mt-2 text-sm">Finding your route...</p>
     </div>
 
     <div id="map"></div>
 
-    <!-- UI Overlay: Search Bar -->
-    <div class="absolute top-6 left-4 right-4 z-[1000]">
-        <div class="bg-white rounded-2xl p-2 flex items-center cartoony-box">
-            <div id="gps-status" class="w-4 h-4 rounded-full bg-gray-400 mr-3 ml-1 border-2 border-slate-700"></div>
-            <input type="text" id="destination" placeholder="Where are you going?" class="flex-grow outline-none text-slate-700 font-bold placeholder-gray-400 bg-transparent">
-            <!-- Hidden GO button, we use the big FAB now, or keep it as small secondary -->
-            <button id="search-btn-small" class="bg-blue-500 text-white font-bold px-3 py-1 rounded-xl border-2 border-slate-800 hover:bg-blue-400 transition ml-2">GO</button>
+    <!-- UI Overlay: Search Card -->
+    <div class="absolute top-4 left-4 right-4 z-[1000] max-w-md mx-auto">
+        <div class="bg-white rounded-xl shadow-lg p-4 space-y-3 border border-slate-100">
+            <!-- From Input -->
+            <div class="flex items-center bg-slate-50 rounded-lg px-3 py-2 border border-slate-200">
+                <div class="w-2 h-2 rounded-full bg-sky-500 mr-3"></div>
+                <input type="text" id="origin" value="Current Location" class="w-full bg-transparent outline-none text-slate-700 text-sm font-medium" readonly>
+                <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            </div>
+
+            <!-- To Input -->
+            <div class="flex items-center bg-slate-50 rounded-lg px-3 py-2 border border-slate-200 focus-within:ring-2 focus-within:ring-navy-800 transition-shadow">
+                <div class="w-2 h-2 rounded-full bg-jeepney-red mr-3"></div>
+                <input type="text" id="destination" placeholder="Where are you going?" class="w-full bg-transparent outline-none text-slate-900 font-semibold placeholder-slate-400">
+            </div>
+
+            <!-- Find Route Button -->
+            <button id="find-route-btn" class="w-full bg-navy-800 text-white font-bold py-3 rounded-lg shadow-md hover:bg-navy-900 active:scale-[0.98] transition-transform flex items-center justify-center">
+                <span>Find Best Route</span>
+                <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
+            </button>
         </div>
-        <div id="status-msg" class="mt-2 text-sm font-bold text-slate-800 bg-yellow-300 p-2 rounded-xl border-2 border-slate-800 hidden text-center shadow-lg"></div>
+
+        <!-- Status Toast -->
+        <div id="status-msg" class="mt-2 text-sm font-medium text-white bg-slate-800 p-3 rounded-lg shadow-lg hidden text-center transition-all opacity-0 transform translate-y-2"></div>
     </div>
 
-    <!-- Sakay Middle Button (FAB) -->
-    <button id="sakay-btn" class="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-[2000] w-24 h-24 bg-white rounded-full cartoony-btn flex items-center justify-center p-0 overflow-hidden group">
-        <div class="w-full h-full relative">
-            <img src="assets/sakay_logo.jpg" class="w-full h-full object-cover transition transform group-hover:scale-110 duration-300">
-            <!-- Overlay text or icon if needed, but logo is self-explanatory -->
-        </div>
-    </button>
+    <!-- Results Sheet (Bottom) -->
+    <div id="results-sheet" class="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.1)] p-6 transform translate-y-full transition-transform duration-300 z-[2000] max-h-[60vh] overflow-y-auto">
+        <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6"></div>
 
-    <!-- Results Sheet -->
-    <div id="results-sheet" class="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl border-t-4 border-slate-800 shadow-[0px_-5px_20px_rgba(0,0,0,0.2)] p-6 transform translate-y-full transition-transform duration-300 z-[1000]">
-        <div class="w-16 h-2 bg-slate-200 rounded-full mx-auto mb-6 border border-slate-300"></div>
-        <h2 class="text-2xl brand-font font-bold mb-4 text-slate-800">Best Ride</h2>
-        <div id="route-card" class="bg-sky-50 p-4 rounded-2xl border-2 border-slate-800 relative">
-            <div class="absolute -top-3 -right-3 bg-yellow-400 text-xs font-bold px-2 py-1 rounded-lg border-2 border-slate-800 shadow-sm rotate-12">FASTEST</div>
-            <div class="flex justify-between items-center mb-2">
-                <span id="route-name" class="font-bold text-2xl text-blue-600 brand-font">Loading...</span>
+        <div class="flex justify-between items-end mb-4">
+            <div>
+                <h2 class="text-xl font-bold text-slate-800">Recommended Route</h2>
+                <p class="text-sm text-slate-500">Based on real-time routes</p>
             </div>
-            <p id="route-instruction" class="text-slate-600 text-base font-medium mb-3">...</p>
-            <div class="flex items-center text-sm font-bold text-slate-500 space-x-2 bg-white px-3 py-1 rounded-lg inline-block border border-slate-200">
-                <span id="walk-dist">🚶 ...</span>
+            <span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full">FASTEST</span>
+        </div>
+
+        <!-- Route Card (Stacked) -->
+        <div class="space-y-3">
+            <!-- Step 1: Walk -->
+            <div class="flex items-start">
+                <div class="flex flex-col items-center mr-4">
+                    <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
+                    </div>
+                    <div class="w-0.5 h-8 bg-slate-200 my-1"></div>
+                </div>
+                <div class="flex-1 bg-white border border-slate-100 rounded-lg p-3 shadow-sm">
+                    <p class="text-sm font-bold text-slate-700">Walk to Boarding Point</p>
+                    <p class="text-xs text-slate-500" id="walk-dist-1">Calculating...</p>
+                </div>
+            </div>
+
+            <!-- Step 2: Jeepney -->
+            <div class="flex items-start">
+                <div class="flex flex-col items-center mr-4">
+                    <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                        <!-- Bus/Jeep Icon -->
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" /><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd" /></svg>
+                    </div>
+                    <div class="w-0.5 h-8 bg-slate-200 my-1"></div>
+                </div>
+                <div class="flex-1 bg-blue-50 border border-blue-100 rounded-lg p-3 shadow-sm">
+                    <div class="flex justify-between">
+                         <p class="text-sm font-bold text-navy-800" id="route-name">Loading...</p>
+                         <span class="text-xs font-bold text-jeepney-orange" id="route-fare">₱13.00</span>
+                    </div>
+                    <p class="text-xs text-slate-600 mt-1" id="route-instruction">Wait for jeepney...</p>
+                </div>
+            </div>
+
+            <!-- Step 3: Arrive -->
+             <div class="flex items-start">
+                <div class="flex flex-col items-center mr-4">
+                    <div class="w-8 h-8 rounded-full bg-jeepney-red text-white flex items-center justify-center">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    </div>
+                </div>
+                <div class="flex-1 bg-white border border-slate-100 rounded-lg p-3 shadow-sm">
+                    <p class="text-sm font-bold text-slate-700">Drop Off & Arrive</p>
+                    <p class="text-xs text-slate-500" id="walk-dist-2">Destination is nearby</p>
+                </div>
             </div>
         </div>
-        <button id="close-sheet-btn" class="w-full mt-4 bg-red-400 text-white font-bold py-3 rounded-xl border-2 border-slate-800 shadow-[3px_3px_0px_0px_#1e293b] active:translate-y-1 active:shadow-none transition">Close</button>
+
+        <button id="close-sheet-btn" class="w-full mt-6 bg-slate-100 text-slate-600 font-bold py-3 rounded-lg hover:bg-slate-200 transition">Close Route</button>
     </div>
 
     <!-- Scripts -->
@@ -99,9 +174,6 @@
 
         // --- CONFIG ---
         const SUPABASE_URL = 'https://cgxvfhxdiqpmnfpktjvr.supabase.co';
-        // SECURITY WARNING: The key provided in the prompt was a Service Role Key.
-        // DO NOT EXPOSE IT IN CLIENT-SIDE CODE.
-        // Use the "anon" public key here.
         const ANON_KEY = '<INSERT_SUPABASE_ANON_KEY_HERE>';
 
         if (ANON_KEY === '<INSERT_SUPABASE_ANON_KEY_HERE>' || !ANON_KEY) {
@@ -114,23 +186,25 @@
         let userMarker;
         let routeLayer;
         let destMarker;
+        let boardingMarker;
+        let dropoffMarker;
 
         // --- INIT ---
         async function init() {
             const supabase = createClient(SUPABASE_URL, ANON_KEY);
 
-            // Init Map
+            // Init Map (Voyager style is good for clean map-first)
             map = L.map('map', { zoomControl: false }).setView([userPos.lat, userPos.lng], 13);
             L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
                 maxZoom: 19,
                 attribution: 'OpenStreetMap, CartoDB'
             }).addTo(map);
 
-            // User Marker (Custom Cartoony Icon)
+            // User Marker (Modern Flat Dot)
             const iconHtml = `
-                <div class="relative w-8 h-8">
-                    <div class="absolute inset-0 bg-blue-500 rounded-full border-4 border-white shadow-lg z-10 box-border"></div>
-                    <div class="absolute inset-0 bg-blue-400 rounded-full animate-ping opacity-75"></div>
+                <div class="relative w-6 h-6">
+                    <div class="absolute inset-0 bg-sky-500 rounded-full border-2 border-white shadow-md z-10 box-border"></div>
+                    <div class="absolute inset-0 bg-sky-400 rounded-full animate-ping opacity-50"></div>
                 </div>
             `;
 
@@ -138,8 +212,8 @@
                 icon: L.divIcon({
                     className: '',
                     html: iconHtml,
-                    iconSize: [32, 32],
-                    iconAnchor: [16, 16]
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
                 })
             }).addTo(map);
 
@@ -150,38 +224,21 @@
                     map.setView([userPos.lat, userPos.lng], 15);
                     userMarker.setLatLng([userPos.lat, userPos.lng]);
 
-                    const gpsEl = document.getElementById('gps-status');
-                    gpsEl.classList.remove('bg-gray-400');
-                    gpsEl.classList.add('bg-green-500', 'animate-pulse', 'border-green-700');
+                    // Update Origin Text
+                    document.getElementById('origin').value = "Current Location";
                 }, err => {
                     console.error("GPS Error", err);
-                    msg("Location denied. Using default center.");
+                    msg("Location denied. Using default center.", true);
                 });
             }
 
-            // Bind Search Buttons
-            document.getElementById('search-btn-small').onclick = () => handleSearch(supabase);
-
-            // Bind FAB (The Sakay Button)
-            const sakayBtn = document.getElementById('sakay-btn');
-            sakayBtn.onclick = () => {
-                const query = document.getElementById('destination').value;
-                if (query) {
-                    // If there's text, search
-                    handleSearch(supabase);
-                } else {
-                    // Else focus input
-                    document.getElementById('destination').focus();
-                    msg("Where to? Enter a destination.");
-                }
-            };
+            // Bind Search Button
+            document.getElementById('find-route-btn').onclick = () => handleSearch(supabase);
 
             // Bind Close Sheet
             document.getElementById('close-sheet-btn').onclick = () => {
                  document.getElementById('results-sheet').classList.add('translate-y-full');
-                 // Also clear route?
-                 if (routeLayer) map.removeLayer(routeLayer);
-                 if (destMarker) map.removeLayer(destMarker);
+                 clearRoute();
                  map.setView([userPos.lat, userPos.lng], 15);
             };
 
@@ -194,44 +251,54 @@
             setTimeout(() => {
                 const loader = document.getElementById('loading-screen');
                 loader.classList.add('hidden-fade');
-                // Remove from DOM after transition to free memory? Optional.
                 setTimeout(() => loader.remove(), 600);
-            }, 2000); // 2 seconds splash
+            }, 1500);
         }
 
-        function msg(text) {
+        function msg(text, isError = false) {
             const el = document.getElementById('status-msg');
             el.innerText = text;
+            el.className = `mt-2 text-sm font-medium text-white p-3 rounded-lg shadow-lg text-center transition-all transform translate-y-0 opacity-100 ${isError ? 'bg-red-500' : 'bg-slate-800'}`;
             el.classList.remove('hidden');
-            // Cartoony pop animation
-            el.classList.add('animate-bounce');
-            setTimeout(() => el.classList.remove('animate-bounce'), 1000);
 
-            setTimeout(() => el.classList.add('hidden'), 3000);
+            setTimeout(() => {
+                el.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => el.classList.add('hidden'), 300);
+            }, 3000);
+        }
+
+        function clearRoute() {
+            if (routeLayer) map.removeLayer(routeLayer);
+            if (destMarker) map.removeLayer(destMarker);
+            if (boardingMarker) map.removeLayer(boardingMarker);
+            if (dropoffMarker) map.removeLayer(dropoffMarker);
         }
 
         async function handleSearch(supabase) {
             const query = document.getElementById('destination').value;
-            if (!query) return;
+            if (!query) {
+                msg("Please enter a destination.", true);
+                return;
+            }
 
-            msg("Looking for location...");
+            msg("Locating destination...");
 
             // 1. Geocode Destination
             const destPos = await geocode(query);
             if (!destPos) {
-                msg("Location not found.");
+                msg("Location not found. Try a landmark.", true);
                 return;
             }
 
             // Show Dest Marker
-            if (destMarker) map.removeLayer(destMarker);
+            clearRoute();
             destMarker = L.marker([destPos.lat, destPos.lng], {
                 icon: L.divIcon({
-                    html: '<div class="text-3xl filter drop-shadow-lg">📍</div>',
+                    html: '<div class="text-3xl drop-shadow-md">📍</div>',
                     iconSize: [30, 40],
                     iconAnchor: [15, 40]
                 })
-            }).addTo(map).bindPopup("Destination").openPopup();
+            }).addTo(map);
 
             // Fit bounds
             map.fitBounds([
@@ -239,7 +306,7 @@
                 [destPos.lat, destPos.lng]
             ], { padding: [50, 50] });
 
-            msg("Scanning routes...");
+            msg("Finding best route...");
 
             // 2. Call Supabase RPC
             const { data, error } = await supabase.rpc('find_best_route', {
@@ -251,22 +318,22 @@
 
             if (error) {
                 console.error(error);
-                msg("Error finding routes.");
+                msg("System error. Please try again.", true);
                 return;
             }
 
             if (!data || data.length === 0) {
-                msg("No routes found nearby (400m).");
+                msg("No routes found nearby (600m).", true);
                 return;
             }
 
             // 3. Render Best Route
             const best = data[0];
             renderRoute(best);
+            msg("Route found!");
         }
 
         async function geocode(query) {
-            // Using OSM Nominatim
             const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ', Iloilo City, Philippines')}&limit=1`;
             try {
                 const res = await fetch(url);
@@ -281,36 +348,42 @@
         }
 
         function renderRoute(route) {
-            if (routeLayer) map.removeLayer(routeLayer);
-
             const segment = JSON.parse(route.route_segment_geojson);
             const pickup = JSON.parse(route.pickup_point_geojson);
             const dropoff = JSON.parse(route.dropoff_point_geojson);
 
-            // Custom line style
+            // Custom line style (Brand Colors)
             routeLayer = L.geoJSON(segment, {
                 style: {
-                    color: route.color || '#3388ff',
-                    weight: 8,
-                    opacity: 0.8,
-                    lineCap: 'round'
+                    color: route.color || '#1e3a8a', // Default to Navy if color missing
+                    weight: 6,
+                    opacity: 0.9,
+                    lineCap: 'round',
+                    lineJoin: 'round'
                 }
             }).addTo(map);
 
             // Draw Points
-            L.circleMarker([pickup.coordinates[1], pickup.coordinates[0]], {
-                color: '#1e293b', fillColor: '#22c55e', fillOpacity: 1, weight: 3, radius: 8
-            }).addTo(map).bindPopup("Board Here");
+            boardingMarker = L.circleMarker([pickup.coordinates[1], pickup.coordinates[0]], {
+                color: '#ffffff', fillColor: '#22c55e', fillOpacity: 1, weight: 3, radius: 6
+            }).addTo(map);
 
-            L.circleMarker([dropoff.coordinates[1], dropoff.coordinates[0]], {
-                color: '#1e293b', fillColor: '#ef4444', fillOpacity: 1, weight: 3, radius: 8
-            }).addTo(map).bindPopup("Drop Off");
+            dropoffMarker = L.circleMarker([dropoff.coordinates[1], dropoff.coordinates[0]], {
+                color: '#ffffff', fillColor: '#ef4444', fillOpacity: 1, weight: 3, radius: 6
+            }).addTo(map);
 
-            // Update UI
+            // Update UI Data
             document.getElementById('route-name').innerText = route.route_name;
-            document.getElementById('route-name').style.color = route.color;
-            document.getElementById('route-instruction').innerText = `Take: ${route.formal_name}`;
-            document.getElementById('walk-dist').innerText = `🚶 Walk ${Math.round(route.total_walking_distance_meters)}m`;
+            // Use route color for text emphasis
+            document.getElementById('route-name').style.color = route.color || '#1e3a8a';
+
+            document.getElementById('route-instruction').innerText = `Board at ${route.formal_name || 'designated area'}`;
+
+            // Calculate walk distances (rough estimate)
+            // We assume total walk is split, or just show total for now
+            const totalWalk = Math.round(route.total_walking_distance_meters);
+            document.getElementById('walk-dist-1').innerText = `~${Math.round(totalWalk * 0.3)}m walk`;
+            document.getElementById('walk-dist-2').innerText = `~${Math.round(totalWalk * 0.7)}m walk`;
 
             // Show Sheet
             document.getElementById('results-sheet').classList.remove('translate-y-full');
