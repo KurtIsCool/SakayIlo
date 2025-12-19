@@ -6,40 +6,90 @@
     <title>SakayIlo</title>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300..700&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
     <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body { margin: 0; padding: 0; font-family: 'Nunito', sans-serif; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; z-index: 0; }
         .leaflet-bottom.leaflet-right { display: none; } /* Hide attribution for cleaner UI demo */
+
+        .brand-font { font-family: 'Fredoka', sans-serif; }
+
+        /* Cartoony Shadow & Borders */
+        .cartoony-box {
+            border: 3px solid #1e293b; /* slate-800 */
+            box-shadow: 4px 4px 0px 0px #1e293b;
+        }
+        .cartoony-btn {
+            border: 3px solid #1e293b;
+            box-shadow: 3px 3px 0px 0px #1e293b;
+            transition: all 0.1s ease-in-out;
+        }
+        .cartoony-btn:active {
+            transform: translate(2px, 2px);
+            box-shadow: 0px 0px 0px 0px #1e293b;
+        }
+
+        /* Loading Screen Transition */
+        #loading-screen {
+            transition: opacity 0.5s ease-out, visibility 0.5s;
+        }
+        #loading-screen.hidden-fade {
+            opacity: 0;
+            visibility: hidden;
+        }
     </style>
 </head>
 <body>
-    <div id="map"></div>
-
-    <!-- UI Overlay -->
-    <div class="absolute top-4 left-4 right-4 z-[1000]">
-        <div class="bg-white rounded-lg shadow-lg p-3 flex items-center">
-            <div id="gps-status" class="w-3 h-3 rounded-full bg-gray-400 mr-3"></div>
-            <input type="text" id="destination" placeholder="Where are you going?" class="flex-grow outline-none text-gray-700">
-            <button id="search-btn" class="text-blue-600 font-bold px-2">GO</button>
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="fixed inset-0 bg-sky-100 z-[5000] flex flex-col items-center justify-center">
+        <div class="w-48 h-48 bg-white rounded-full flex items-center justify-center border-4 border-slate-800 shadow-[6px_6px_0px_0px_rgba(30,41,59,1)] overflow-hidden mb-6 animate-bounce">
+            <img src="assets/sakay_logo.jpg" alt="SakayIlo Logo" class="w-full h-full object-cover">
         </div>
-        <div id="status-msg" class="mt-2 text-xs text-gray-800 bg-white/90 p-1 rounded hidden"></div>
+        <h1 class="brand-font text-4xl text-slate-800 tracking-wider">SakayIlo</h1>
+        <p class="text-slate-600 mt-2 font-bold animate-pulse">Loading Map...</p>
     </div>
 
+    <div id="map"></div>
+
+    <!-- UI Overlay: Search Bar -->
+    <div class="absolute top-6 left-4 right-4 z-[1000]">
+        <div class="bg-white rounded-2xl p-2 flex items-center cartoony-box">
+            <div id="gps-status" class="w-4 h-4 rounded-full bg-gray-400 mr-3 ml-1 border-2 border-slate-700"></div>
+            <input type="text" id="destination" placeholder="Where are you going?" class="flex-grow outline-none text-slate-700 font-bold placeholder-gray-400 bg-transparent">
+            <!-- Hidden GO button, we use the big FAB now, or keep it as small secondary -->
+            <button id="search-btn-small" class="bg-blue-500 text-white font-bold px-3 py-1 rounded-xl border-2 border-slate-800 hover:bg-blue-400 transition ml-2">GO</button>
+        </div>
+        <div id="status-msg" class="mt-2 text-sm font-bold text-slate-800 bg-yellow-300 p-2 rounded-xl border-2 border-slate-800 hidden text-center shadow-lg"></div>
+    </div>
+
+    <!-- Sakay Middle Button (FAB) -->
+    <button id="sakay-btn" class="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-[2000] w-24 h-24 bg-white rounded-full cartoony-btn flex items-center justify-center p-0 overflow-hidden group">
+        <div class="w-full h-full relative">
+            <img src="assets/sakay_logo.jpg" class="w-full h-full object-cover transition transform group-hover:scale-110 duration-300">
+            <!-- Overlay text or icon if needed, but logo is self-explanatory -->
+        </div>
+    </button>
+
     <!-- Results Sheet -->
-    <div id="results-sheet" class="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl p-5 transform translate-y-full transition-transform duration-300 z-[1000]">
-        <div class="w-12 h-1 bg-gray-300 rounded-full mx-auto mb-4"></div>
-        <h2 class="text-lg font-bold mb-2">Best Ride</h2>
-        <div id="route-card" class="bg-gray-50 p-4 rounded-xl border border-gray-100">
+    <div id="results-sheet" class="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl border-t-4 border-slate-800 shadow-[0px_-5px_20px_rgba(0,0,0,0.2)] p-6 transform translate-y-full transition-transform duration-300 z-[1000]">
+        <div class="w-16 h-2 bg-slate-200 rounded-full mx-auto mb-6 border border-slate-300"></div>
+        <h2 class="text-2xl brand-font font-bold mb-4 text-slate-800">Best Ride</h2>
+        <div id="route-card" class="bg-sky-50 p-4 rounded-2xl border-2 border-slate-800 relative">
+            <div class="absolute -top-3 -right-3 bg-yellow-400 text-xs font-bold px-2 py-1 rounded-lg border-2 border-slate-800 shadow-sm rotate-12">FASTEST</div>
             <div class="flex justify-between items-center mb-2">
-                <span id="route-name" class="font-bold text-lg text-purple-700">Loading...</span>
+                <span id="route-name" class="font-bold text-2xl text-blue-600 brand-font">Loading...</span>
             </div>
-            <p id="route-instruction" class="text-gray-600 text-sm mb-2">...</p>
-            <div class="flex items-center text-xs text-gray-500 space-x-4">
+            <p id="route-instruction" class="text-slate-600 text-base font-medium mb-3">...</p>
+            <div class="flex items-center text-sm font-bold text-slate-500 space-x-2 bg-white px-3 py-1 rounded-lg inline-block border border-slate-200">
                 <span id="walk-dist">🚶 ...</span>
             </div>
         </div>
+        <button id="close-sheet-btn" class="w-full mt-4 bg-red-400 text-white font-bold py-3 rounded-xl border-2 border-slate-800 shadow-[3px_3px_0px_0px_#1e293b] active:translate-y-1 active:shadow-none transition">Close</button>
     </div>
 
     <!-- Scripts -->
@@ -59,22 +109,33 @@
         let map;
         let userMarker;
         let routeLayer;
+        let destMarker;
 
         // --- INIT ---
         async function init() {
             const supabase = createClient(SUPABASE_URL, ANON_KEY);
 
             // Init Map
-            map = L.map('map').setView([userPos.lat, userPos.lng], 13);
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-                maxZoom: 19
+            map = L.map('map', { zoomControl: false }).setView([userPos.lat, userPos.lng], 13);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19,
+                attribution: 'OpenStreetMap, CartoDB'
             }).addTo(map);
 
-            // User Marker
+            // User Marker (Custom Cartoony Icon)
+            const iconHtml = `
+                <div class="relative w-8 h-8">
+                    <div class="absolute inset-0 bg-blue-500 rounded-full border-4 border-white shadow-lg z-10 box-border"></div>
+                    <div class="absolute inset-0 bg-blue-400 rounded-full animate-ping opacity-75"></div>
+                </div>
+            `;
+
             userMarker = L.marker([userPos.lat, userPos.lng], {
                 icon: L.divIcon({
-                    className: 'bg-blue-500 w-4 h-4 rounded-full border-2 border-white shadow-lg',
-                    iconSize: [16, 16]
+                    className: '',
+                    html: iconHtml,
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 16]
                 })
             }).addTo(map);
 
@@ -84,22 +145,64 @@
                     userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
                     map.setView([userPos.lat, userPos.lng], 15);
                     userMarker.setLatLng([userPos.lat, userPos.lng]);
-                    document.getElementById('gps-status').classList.remove('bg-gray-400');
-                    document.getElementById('gps-status').classList.add('bg-blue-500', 'animate-pulse');
+
+                    const gpsEl = document.getElementById('gps-status');
+                    gpsEl.classList.remove('bg-gray-400');
+                    gpsEl.classList.add('bg-green-500', 'animate-pulse', 'border-green-700');
                 }, err => {
                     console.error("GPS Error", err);
                     msg("Location denied. Using default center.");
                 });
             }
 
-            // Bind Search
-            document.getElementById('search-btn').onclick = () => handleSearch(supabase);
+            // Bind Search Buttons
+            document.getElementById('search-btn-small').onclick = () => handleSearch(supabase);
+
+            // Bind FAB (The Sakay Button)
+            const sakayBtn = document.getElementById('sakay-btn');
+            sakayBtn.onclick = () => {
+                const query = document.getElementById('destination').value;
+                if (query) {
+                    // If there's text, search
+                    handleSearch(supabase);
+                } else {
+                    // Else focus input
+                    document.getElementById('destination').focus();
+                    msg("Where to? Enter a destination.");
+                }
+            };
+
+            // Bind Close Sheet
+            document.getElementById('close-sheet-btn').onclick = () => {
+                 document.getElementById('results-sheet').classList.add('translate-y-full');
+                 // Also clear route?
+                 if (routeLayer) map.removeLayer(routeLayer);
+                 if (destMarker) map.removeLayer(destMarker);
+                 map.setView([userPos.lat, userPos.lng], 15);
+            };
+
+            // Allow Enter key
+            document.getElementById('destination').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') handleSearch(supabase);
+            });
+
+            // Simulate loading done
+            setTimeout(() => {
+                const loader = document.getElementById('loading-screen');
+                loader.classList.add('hidden-fade');
+                // Remove from DOM after transition to free memory? Optional.
+                setTimeout(() => loader.remove(), 600);
+            }, 2000); // 2 seconds splash
         }
 
         function msg(text) {
             const el = document.getElementById('status-msg');
             el.innerText = text;
             el.classList.remove('hidden');
+            // Cartoony pop animation
+            el.classList.add('animate-bounce');
+            setTimeout(() => el.classList.remove('animate-bounce'), 1000);
+
             setTimeout(() => el.classList.add('hidden'), 3000);
         }
 
@@ -109,8 +212,7 @@
 
             msg("Looking for location...");
 
-            // 1. Geocode Destination (Mocking with a fixed offset for demo, or using Nominatim)
-            // Ideally use Nominatim for real results
+            // 1. Geocode Destination
             const destPos = await geocode(query);
             if (!destPos) {
                 msg("Location not found.");
@@ -118,7 +220,14 @@
             }
 
             // Show Dest Marker
-            L.marker([destPos.lat, destPos.lng]).addTo(map).bindPopup("Destination").openPopup();
+            if (destMarker) map.removeLayer(destMarker);
+            destMarker = L.marker([destPos.lat, destPos.lng], {
+                icon: L.divIcon({
+                    html: '<div class="text-3xl filter drop-shadow-lg">📍</div>',
+                    iconSize: [30, 40],
+                    iconAnchor: [15, 40]
+                })
+            }).addTo(map).bindPopup("Destination").openPopup();
 
             // Fit bounds
             map.fitBounds([
@@ -174,20 +283,30 @@
             const pickup = JSON.parse(route.pickup_point_geojson);
             const dropoff = JSON.parse(route.dropoff_point_geojson);
 
-            // Draw Line
+            // Custom line style
             routeLayer = L.geoJSON(segment, {
-                style: { color: route.color || '#3388ff', weight: 5 }
+                style: {
+                    color: route.color || '#3388ff',
+                    weight: 8,
+                    opacity: 0.8,
+                    lineCap: 'round'
+                }
             }).addTo(map);
 
             // Draw Points
-            L.circleMarker([pickup.coordinates[1], pickup.coordinates[0]], { color: 'green', radius: 6 }).addTo(map).bindPopup("Board Here");
-            L.circleMarker([dropoff.coordinates[1], dropoff.coordinates[0]], { color: 'red', radius: 6 }).addTo(map).bindPopup("Drop Off");
+            L.circleMarker([pickup.coordinates[1], pickup.coordinates[0]], {
+                color: '#1e293b', fillColor: '#22c55e', fillOpacity: 1, weight: 3, radius: 8
+            }).addTo(map).bindPopup("Board Here");
+
+            L.circleMarker([dropoff.coordinates[1], dropoff.coordinates[0]], {
+                color: '#1e293b', fillColor: '#ef4444', fillOpacity: 1, weight: 3, radius: 8
+            }).addTo(map).bindPopup("Drop Off");
 
             // Update UI
             document.getElementById('route-name').innerText = route.route_name;
             document.getElementById('route-name').style.color = route.color;
-            document.getElementById('route-instruction').innerText = `Formal: ${route.formal_name}`;
-            document.getElementById('walk-dist').innerText = `🚶 Walk ${Math.round(route.total_walking_distance_meters)}m total`;
+            document.getElementById('route-instruction').innerText = `Take: ${route.formal_name}`;
+            document.getElementById('walk-dist').innerText = `🚶 Walk ${Math.round(route.total_walking_distance_meters)}m`;
 
             // Show Sheet
             document.getElementById('results-sheet').classList.remove('translate-y-full');
