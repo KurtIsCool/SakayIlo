@@ -64,6 +64,9 @@
 
         /* Bottom Nav Safe Area */
         .pb-safe-nav { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
+
+        /* Filter Button Active State */
+        .filter-btn-active { @apply bg-sky-100 text-sky-600 border-sky-200 ring-2 ring-sky-100; }
     </style>
 </head>
 <body class="bg-slate-50">
@@ -124,13 +127,13 @@
 
              <!-- Optional Options -->
              <div class="flex gap-2 overflow-x-auto pb-1 hide-scrollbar" id="search-options">
-                 <button class="flex-none px-4 py-2 rounded-full bg-slate-100 text-xs font-medium text-slate-600 hover:bg-sky-100 hover:text-sky-600 transition-colors border border-transparent hover:border-sky-200 whitespace-nowrap">
+                 <button data-sort="fastest" class="filter-btn flex-none px-4 py-2 rounded-full bg-slate-100 text-xs font-medium text-slate-600 hover:bg-sky-100 hover:text-sky-600 transition-colors border border-transparent hover:border-sky-200 whitespace-nowrap bg-sky-100 text-sky-600 border-sky-200 ring-2 ring-sky-100">
                     Fastest Route
                  </button>
-                 <button class="flex-none px-4 py-2 rounded-full bg-slate-100 text-xs font-medium text-slate-600 hover:bg-sky-100 hover:text-sky-600 transition-colors border border-transparent hover:border-sky-200 whitespace-nowrap">
+                 <button data-sort="transfers" class="filter-btn flex-none px-4 py-2 rounded-full bg-slate-100 text-xs font-medium text-slate-600 hover:bg-sky-100 hover:text-sky-600 transition-colors border border-transparent hover:border-sky-200 whitespace-nowrap">
                     Least Transfers
                  </button>
-                 <button class="flex-none px-4 py-2 rounded-full bg-slate-100 text-xs font-medium text-slate-600 hover:bg-sky-100 hover:text-sky-600 transition-colors border border-transparent hover:border-sky-200 whitespace-nowrap">
+                 <button data-sort="cheapest" class="filter-btn flex-none px-4 py-2 rounded-full bg-slate-100 text-xs font-medium text-slate-600 hover:bg-sky-100 hover:text-sky-600 transition-colors border border-transparent hover:border-sky-200 whitespace-nowrap">
                     Cheapest
                  </button>
              </div>
@@ -248,6 +251,7 @@
         };
         let startLocationName = "Current Location";
         let allRoutesData = []; // Cache for routes list
+        let sortMode = 'fastest'; // Default filter
 
         // --- ICONS ---
         const svgs = {
@@ -300,6 +304,25 @@
                 startLocationName = "Current Location";
                 showToast("Using Current Location");
             };
+
+            // Filter Buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.onclick = () => {
+                    // Update UI
+                    document.querySelectorAll('.filter-btn').forEach(b => {
+                        b.classList.remove('bg-sky-100', 'text-sky-600', 'border-sky-200', 'ring-2', 'ring-sky-100');
+                        b.classList.add('bg-slate-100', 'text-slate-600');
+                    });
+                    btn.classList.remove('bg-slate-100', 'text-slate-600');
+                    btn.classList.add('bg-sky-100', 'text-sky-600', 'border-sky-200', 'ring-2', 'ring-sky-100');
+
+                    sortMode = btn.dataset.sort;
+                    // Auto-search if destination exists
+                    if (document.getElementById('destination').value) {
+                         handleSearch(supabase);
+                    }
+                }
+            });
 
             // Routes Logic
             document.getElementById('route-search').addEventListener('input', (e) => filterRoutes(e.target.value));
@@ -478,12 +501,31 @@
 
         // --- SAKAY LOGIC (Search) ---
         async function geocode(query) {
-            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ', Iloilo City, Philippines')}&limit=1`;
-            try {
-                const res = await fetch(url);
-                const json = await res.json();
-                if (json && json.length > 0) return { lat: parseFloat(json[0].lat), lng: parseFloat(json[0].lon), name: json[0].display_name.split(',')[0] };
-            } catch (e) { console.error(e); }
+            if (!query) return null;
+            const cleanQuery = query.replace(/[^\w\s]/gi, '').trim(); // Basic sanitization
+            if (cleanQuery.length < 3) return null;
+
+            // Retries logic
+            for (let i = 0; i < 2; i++) {
+                try {
+                     const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cleanQuery + ', Iloilo City, Philippines')}&limit=1`;
+                     const res = await fetch(url, { signal: AbortSignal.timeout(5000) }); // 5s Timeout
+                     if (!res.ok) throw new Error("Network Error");
+
+                     const json = await res.json();
+                     if (json && json.length > 0) {
+                         return {
+                             lat: parseFloat(json[0].lat),
+                             lng: parseFloat(json[0].lon),
+                             name: json[0].display_name.split(',')[0]
+                         };
+                     }
+                     break; // No results, don't retry
+                } catch (e) {
+                     console.warn(`Geocode attempt ${i+1} failed:`, e);
+                     await new Promise(r => setTimeout(r, 1000)); // Wait 1s
+                }
+            }
             return null;
         }
 
@@ -501,13 +543,26 @@
             try {
                 let startCoords = userPos;
                 if (startInput && startInput.trim() !== "") {
-                    const s = await geocode(startInput);
-                    if (s) startCoords = s;
-                    else { showToast("Start not found"); btn.innerHTML = originalText; return; }
+                    // Check if input is "Current Location"
+                    if (startInput.toLowerCase().includes("current location")) {
+                         // Keep userPos
+                    } else {
+                        const s = await geocode(startInput);
+                        if (s) startCoords = s;
+                        else {
+                            showToast("Start location not found. Try a landmark.");
+                            btn.innerHTML = originalText;
+                            return;
+                        }
+                    }
                 }
 
                 const d = await geocode(destInput);
-                if (!d) { showToast("Destination not found"); btn.innerHTML = originalText; return; }
+                if (!d) {
+                    showToast("Destination not found. Try a landmark.");
+                    btn.innerHTML = originalText;
+                    return;
+                }
 
                 // Map Update
                 if (layers.dest) map.removeLayer(layers.dest);
@@ -516,7 +571,11 @@
 
                 // Supabase RPC
                 const { data, error } = await supabase.rpc('find_best_route', {
-                    user_lat: startCoords.lat, user_lng: startCoords.lng, dest_lat: d.lat, dest_lng: d.lng
+                    user_lat: startCoords.lat,
+                    user_lng: startCoords.lng,
+                    dest_lat: d.lat,
+                    dest_lng: d.lng,
+                    sort_mode: sortMode // Pass current filter
                 });
 
                 if (error) throw error;
@@ -525,7 +584,7 @@
 
             } catch (err) {
                 console.error(err);
-                showToast("Error finding routes.");
+                showToast("Error finding routes. Please try again.");
             } finally {
                 btn.innerHTML = originalText;
                 lucide.createIcons();
@@ -538,14 +597,26 @@
             list.innerHTML = "";
 
             if (routes.length === 0) {
-                list.innerHTML = `<div class="text-center py-8 text-slate-500">No routes found. Try walking!</div>`;
+                list.innerHTML = `
+                    <div class="text-center py-8 text-slate-500 flex flex-col items-center gap-2">
+                        <i data-lucide="footprints" class="w-8 h-8 opacity-50"></i>
+                        <p>No direct routes found.</p>
+                        <p class="text-xs">Try searching for a closer landmark or walking.</p>
+                    </div>`;
+                lucide.createIcons();
             } else {
                 document.getElementById('results-subtext').innerText = `${routes.length} options found`;
                 visualizeRoute(routes[0]); // Auto show best
 
                 routes.forEach((route, idx) => {
                     const isBest = idx === 0;
-                    const time = Math.round(route.total_walking_distance_meters / 1.4 / 60) + 10;
+                    const time = Math.round(route.total_walking_distance_meters / 1.4 / 60) + 10; // Approx
+
+                    // Label based on sort
+                    let tag = "";
+                    if (isBest && sortMode === 'fastest') tag = '<span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">FASTEST</span>';
+                    else if (route.is_loop_ride) tag = '<span class="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">LOOP</span>';
+
                     const card = document.createElement('div');
                     card.className = `p-4 rounded-xl border transition-all cursor-pointer ${isBest ? 'bg-sky-50 border-sky-200 ring-1 ring-sky-100' : 'bg-white border-slate-100 hover:bg-slate-50'}`;
                     card.innerHTML = `
@@ -555,8 +626,11 @@
                                     ${route.route_name.substring(0,2).toUpperCase()}
                                 </div>
                                 <div>
-                                    <h3 class="font-bold text-navy">${route.route_name}</h3>
-                                    <p class="text-xs text-slate-500">${(route.total_walking_distance_meters/1000).toFixed(1)} km total walk</p>
+                                    <div class="flex items-center gap-2">
+                                        <h3 class="font-bold text-navy">${route.route_name}</h3>
+                                        ${tag}
+                                    </div>
+                                    <p class="text-xs text-slate-500">${(route.total_walking_distance_meters/1000).toFixed(1)} km walk</p>
                                 </div>
                             </div>
                             <div class="text-right">
